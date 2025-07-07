@@ -381,9 +381,13 @@ def draw_chart(ax):
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
 
-        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}_{mtype_key}"
-        if key not in y_map:
-            continue
+        if seg["Type"] == "Request":
+        key = f"Request_{seg['Year']}_{mtype_key}"
+    else:
+        key = f"Approval_{seg['Year']}".replace(" ", "_")
+
+    if key not in y_map:
+        continue
 
         y = y_map[key]
         clipped_start = max(seg["PK_Start"], start_input)
