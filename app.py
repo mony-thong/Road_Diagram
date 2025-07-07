@@ -364,17 +364,13 @@ st.dataframe(sum_grouped)
 
 # === Auto PDF Export Section ===
 import io
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.ticker import FuncFormatter
 from matplotlib.gridspec import GridSpec
+from matplotlib.ticker import FuncFormatter
 
-export_base = f"{selected_road}_{int(start_input)}_{int(end_input)}"
-
-# Function: Generate Chart Figure
-def generate_chart_figure():
-    fig, ax1 = plt.subplots(figsize=(16.5, 11.7))
-    ax1.set_title(f"\nRoad: {selected_road}", fontproperties=font_prop, fontsize=title_font_size)
-
+# === DRAW CHART FUNCTION ===
+def draw_chart(ax):
     request_segments = filtered[filtered["Type"] == "Request"].sort_values(by="PK_Start").reset_index()
     request_seq_map = {row["index"]: i + 1 for i, row in request_segments.iterrows()}
 
@@ -382,63 +378,72 @@ def generate_chart_figure():
         mtype = str(seg['Maintenance_Type']).strip()
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
-        key = f"{seg['Type']}_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}".replace(" ", "_")
+
+        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}"
         if key not in y_map:
             continue
+
         y = y_map[key]
         clipped_start = max(seg["PK_Start"], start_input)
         clipped_end = min(seg["PK_End"], end_input)
         if clipped_start >= clipped_end:
             continue
+
         edgecolor = "black" if seg["Type"] == "Request" else "none"
-        ax1.barh(y, clipped_end - clipped_start, left=clipped_start,
-                 color=color, edgecolor=edgecolor, height=0.6)
+        bar = ax.barh(y, clipped_end - clipped_start, left=clipped_start,
+                      color=color, edgecolor=edgecolor, height=0.6)
+
         if seg["Type"] == "Request":
             seq = request_seq_map.get(idx, "")
             center_x = (clipped_start + clipped_end) / 2
-            ax1.text(center_x, y, str(seq), ha='center', va='center',
-                     fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5)
+            ax.text(center_x, y, str(seq), ha='center', va='center',
+                    fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5)
 
-    ax1.set_yticks(list(y_map.values()))
     x_offset = (end_input - start_input) * 0.015
+    ax.set_yticks(list(y_map.values()))
     for y_val, label in zip(y_map.values(), y_labels):
-        ax1.text(start_input - x_offset, y_val, label,
-                 va='center', ha='right', fontsize=font_size,
-                 fontproperties=font_prop, color=y_label_colors[y_val])
+        ax.text(start_input - x_offset, y_val, label, va='center', ha='right',
+                fontsize=font_size, fontproperties=font_prop, color=y_label_colors[y_val])
 
     label_x = start_input + (end_input - start_input) * 0.01
     for group_label, y_pos in group_titles:
-        ax1.text(label_x, y_pos, group_label,
-                 fontsize=font_size + 1, fontproperties=font_prop,
-                 color="green", ha='center', va='center', rotation=90,
-                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="green", facecolor="none"))
+        ax.text(label_x, y_pos, group_label, fontsize=font_size + 1,
+                fontproperties=font_prop, color="green", ha='center', va='center', rotation=90,
+                bbox=dict(boxstyle="round,pad=0.3", edgecolor="green", facecolor="none"))
 
-    ax1.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x // 1000)}+{int(x % 1000):03d}"))
-    ax1.set_xlim(start_input, end_input)
-    ax1.set_ylim(-0.5, max(y_map.values()) + 1.5)
-    ax1.grid(True)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x // 1000)}+{int(x % 1000):03d}"))
+    ax.set_xlim(start_input, end_input)
+    ax.set_ylim(-0.5, max(y_map.values()) + 1.5)
+    ax.grid(True)
 
     if legend_handles:
-        ax1.legend(legend_handles.values(), legend_handles.keys(),
-                   title="Maintenance Type", loc="upper right")
+        ax.legend(legend_handles.values(), legend_handles.keys(),
+                  title="Maintenance Type", loc="upper right")
 
-    return fig
-
-# Function: Generate Summary Table Figure
-def generate_summary_figure():
-    fig, ax = plt.subplots(figsize=(16.5, 11.6))
+# === DRAW SUMMARY FUNCTION ===
+def draw_summary_table(ax):
     ax.axis("off")
-
     table_data = sum_grouped.copy()
     table_data["PK Range"] = table_data["PK Range"].apply(lambda x: "\n".join(x[i:i+60] for i in range(0, len(x), 60)))
     data_matrix = table_data.values.tolist()
     col_labels = list(table_data.columns)
 
-    table = ax.table(cellText=data_matrix, colLabels=col_labels, cellLoc='center', loc='center', bbox=[0, 0, 1, 1])
+    table = ax.table(
+        cellText=data_matrix,
+        colLabels=col_labels,
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
+    )
     table.auto_set_font_size(False)
-    table.set_fontsize(13)
+    col_widths = [0.12, 0.22, 0.5, 0.13]
 
     for (row, col), cell in table.get_celld().items():
+        cell.set_linewidth(0.7)
+        cell.set_fontsize(13)
+        cell.set_height(0.15)
+        if col < len(col_widths):
+            cell.set_width(col_widths[col])
         if row == 0:
             cell.set_text_props(color='white', weight='bold')
             cell.set_facecolor('#003366')
@@ -448,33 +453,64 @@ def generate_summary_figure():
             cell.set_facecolor('white')
 
     table.scale(1, 2.0)
+
+# === EXPORT HELPERS ===
+def export_pdf(fig):
+    buf = io.BytesIO()
+    with PdfPages(buf) as pdf:
+        pdf.savefig(fig, bbox_inches='tight')
+    buf.seek(0)
+    return buf
+
+def generate_chart_only_pdf():
+    fig, ax = plt.subplots(figsize=(16.5, 11.7))
+    fig.subplots_adjust(left=0.1, right=0.9, top=0.92, bottom=0.1)
+    draw_chart(ax)
     return fig
 
-# Function: Export to PDF in memory
-def export_pdf(figs: list):
-    buffer = io.BytesIO()
-    with PdfPages(buffer) as pdf:
-        for fig in figs:
-            pdf.savefig(fig, bbox_inches='tight')
-    return buffer.getvalue()
+def generate_summary_only_pdf():
+    fig, ax = plt.subplots(figsize=(16.5, 11.7))
+    fig.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+    draw_summary_table(ax)
+    return fig
 
-# === EXPORT 1: Chart + Summary
-full_pdf = export_pdf([generate_chart_figure(), generate_summary_figure()])
-st.download_button(
-    label="📥 Download Chart + Summary",
-    data=full_pdf,
-    file_name=f"{export_base}_full.pdf",
-    mime="application/pdf"
-)
+def generate_chart_summary_pdf():
+    fig = plt.figure(figsize=(16.5, 11.7))
+    gs = GridSpec(2, 1, height_ratios=[2.2, 1.2])
+    fig.subplots_adjust(left=0.1, right=0.9, top=0.93, bottom=0.08)
+    ax1 = fig.add_subplot(gs[0])
+    ax2 = fig.add_subplot(gs[1])
+    draw_chart(ax1)
+    draw_summary_table(ax2)
+    return fig
 
-# === EXPORT 2: Chart Only
-chart_pdf = export_pdf([generate_chart_figure()])
-st.download_button(
-    label="📈 Download Chart Only",
-    data=chart_pdf,
-    file_name=f"{export_base}_chart.pdf",
-    mime="application/pdf"
-)
+# === STREAMLIT UI ===
+export_base = f"{selected_road}_{int(start_input)}_{int(end_input)}"
+st.markdown("---")
+st.markdown("### 📄 Export PDF Options")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("**📊 Chart Only**")
+    fig = generate_chart_only_pdf()
+    buf = export_pdf(fig)
+    st.download_button("Download Chart", data=buf, file_name=f"{export_base}_chart.pdf", mime="application/pdf")
+    plt.close(fig)
+
+with col2:
+    st.markdown("**📋 Summary Only**")
+    fig = generate_summary_only_pdf()
+    buf = export_pdf(fig)
+    st.download_button("Download Summary", data=buf, file_name=f"{export_base}_summary.pdf", mime="application/pdf")
+    plt.close(fig)
+
+with col3:
+    st.markdown("**📊 + 📋 Full Report**")
+    fig = generate_chart_summary_pdf()
+    buf = export_pdf(fig)
+    st.download_button("Download Full Report", data=buf, file_name=f"{export_base}_full.pdf", mime="application/pdf")
+    plt.close(fig)
 
 # === EXPORT 3: Summary Only
 summary_pdf = export_pdf([generate_summary_figure()])
