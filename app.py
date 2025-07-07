@@ -370,7 +370,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import FuncFormatter
 
 # === DRAW CHART FUNCTION ===
-ef draw_chart(ax):
+def draw_chart(ax):
     request_segments = filtered[filtered["Type"] == "Request"].sort_values(by="PK_Start").reset_index()
     request_seq_map = {row["index"]: i + 1 for i, row in request_segments.iterrows()}
 
