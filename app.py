@@ -36,70 +36,47 @@ if st.sidebar.button("🔄 Refresh Data"):
         else:
             st.error("❌ Failed to download Excel. Please check sharing permissions.")
 
-# Load data
+# === Load data ===
+DATA_FILE = "road_maintenance_updated.xlsx"
+
 if os.path.exists(DATA_FILE):
     df = pd.read_excel(DATA_FILE)
 
-    # Clean up Year and Chapter
-    df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
-    df["Chapter"] = pd.to_numeric(df["Chapter"], errors="coerce")
-    df["Year"] = df["Year"].dropna().astype(int).astype(str)
-    df["Chapter"] = df["Chapter"].dropna().astype(int).astype(str)
+    # Clean Year and Chapter fields
+    df["Year"] = pd.to_numeric(df["Year"], errors="coerce").dropna().astype(int).astype(str)
+    df["Chapter"] = pd.to_numeric(df["Chapter"], errors="coerce").dropna().astype(int).astype(str)
 else:
-    st.error("Excel data file not found.")
+    st.error("❌ Excel data file not found.")
     st.stop()
 
-# Sidebar: Road selection
-road_ids = df["Road_ID"].dropna().unique()
+# === Sidebar Filters ===
+road_ids = sorted(df["Road_ID"].dropna().astype(str).unique())
 selected_road = st.sidebar.selectbox("Select Road ID", road_ids)
 
-# Filter to selected road and remove blanks
-road_df = df[df["Road_ID"] == selected_road].copy()
-road_df = road_df[
-    road_df["Maintenance_Type"].notna() &
-    (road_df["Maintenance_Type"].astype(str).str.strip() != "") &
-    road_df["Year"].notna() &
-    (road_df["Year"].astype(str).str.strip() != "")
-]
-
-# Determine PK range
+# PK Range Setup
+road_df = df[df["Road_ID"].astype(str) == selected_road]
 pk_min = float(road_df["PK_Start"].min())
 pk_max = float(road_df["PK_End"].max())
-start_input = st.sidebar.number_input("PK Start (input)", min_value=0, max_value=int(pk_max), value=int(pk_min), step=100)
-end_input = st.sidebar.number_input("PK End (input)", min_value=pk_min, max_value=pk_max, value=pk_max)
 
-# Sidebar: dynamic filters from cleaned road_df
-years = sorted(road_df["Year"].unique(), reverse=True)
+start_input = st.sidebar.number_input("PK Start", min_value=0, max_value=int(pk_max), value=int(pk_min), step=100)
+end_input = st.sidebar.number_input("PK End", min_value=pk_min, max_value=pk_max, value=pk_max)
+
+# Year, Type, Chapter Filters
+years = sorted(df["Year"].dropna().unique(), reverse=True)
 selected_years = st.sidebar.multiselect("Select Year(s) to Show", years, default=years)
 
-types = sorted(road_df["Maintenance_Type"].unique())
+types = df["Maintenance_Type"].dropna().astype(str).unique()
 selected_types = st.sidebar.multiselect("Select Maintenance Type(s)", types, default=types)
 
-chapters = sorted(road_df["Chapter"].dropna().unique())
+chapters = df["Chapter"].dropna().astype(str).unique()
 selected_chapter = st.sidebar.multiselect("Select Chapter(s)", chapters, default=chapters)
 
-# Filter after inputs
-filtered = road_df[
-    (road_df["PK_End"] >= start_input) &
-    (road_df["PK_Start"] <= end_input) &
-    (road_df["Maintenance_Type"].isin(selected_types)) &
-    (road_df["Chapter"].isin(selected_chapter)) &
-    (road_df["Year"].isin(selected_years))
-]
-
-# Warn if no data
-if filtered.empty:
-    st.warning("⚠ No data matches your filters. Please adjust selections.")
-    st.stop()
-
-# Auto-generate Layer Order (bottom to top)
-request_years = sorted(filtered[filtered["Type"] == "Request"]["Year"].unique(), reverse=True)
-approval_years = sorted(filtered[filtered["Type"] == "Approval"]["Year"].unique(), reverse=True)
-available_layers = [f"Approval {y}" for y in approval_years] + [f"Request {y}" for y in request_years]
-
+# Layer Order Control
+request_years = sorted(df[df["Type"] == "Request"]["Year"].dropna().unique(), reverse=True)
+available_layers = [f"Approval {y}" for y in selected_years] + [f"Request {y}" for y in request_years if y in selected_years]
 layer_order = st.sidebar.multiselect("Set Layer Order (Bottom to Top)", available_layers, default=available_layers[::-1])
 
-# Color & pattern
+# Color Map Setup
 st.sidebar.markdown("### Customize Colors")
 color_map = {}
 default_colors = ["#e74c3c", "#3498db", "#2ecc71", "#9b59b6", "#f39c12", "#1abc9c", "#7f8c8d"]
@@ -107,12 +84,12 @@ for i, t in enumerate(types):
     color = st.sidebar.color_picker(f"{t} Color", default_colors[i % len(default_colors)])
     color_map[t] = color
 
-# Font size customization
+# Font Size Controls
 st.sidebar.markdown("### Customize Font Size")
 font_size = st.sidebar.slider("Font Size", min_value=6, max_value=20, value=15)
 title_font_size = st.sidebar.slider("Title Font Size", min_value=10, max_value=30, value=20)
 
-# Manual Annotation
+# Manual Label Input
 st.sidebar.markdown("---")
 st.sidebar.markdown("### Add Manual Location Label")
 
@@ -127,26 +104,26 @@ for i in range(num_labels):
         label_color = st.color_picker(f"Label Color {i+1}", "#000000", key=f"label_color_{i}")
         manual_labels.append((label_text, label_pk_start, label_pk_end, label_color))
 
-# Apply filters to data
-filtered = road_df[
-    (road_df["PK_End"] >= start_input) &
-    (road_df["PK_Start"] <= end_input) &
-    (road_df["Maintenance_Type"].isin(selected_types)) &
-    (road_df["Chapter"].isin(selected_chapter)) &
-    (road_df["Year"].isin(selected_years))
+# === Filter Data Based on Inputs ===
+filtered = df[
+    (df["Road_ID"].astype(str) == str(selected_road)) &
+    (df["PK_End"] >= start_input) &
+    (df["PK_Start"] <= end_input) &
+    (df["Maintenance_Type"].notna()) &
+    (df["Maintenance_Type"].astype(str).str.strip() != "") &
+    (df["Maintenance_Type"].isin(selected_types)) &
+    (df["Chapter"].isin(selected_chapter)) &
+    (df["Year"].astype(str).isin([str(y) for y in selected_years])) &
+    (
+        (df["Type"] != "Approval") |
+        ((df["Type"] == "Approval") & df["Year"].notna() & (df["Year"].astype(str).str.strip() != ""))
+    )
 ]
 
-# Auto-generate Layer Order (bottom to top)
-request_years = sorted(filtered[filtered["Type"] == "Request"]["Year"].unique(), reverse=True)
-approval_years = sorted(filtered[filtered["Type"] == "Approval"]["Year"].unique(), reverse=True)
-available_layers = [f"Approval {y}" for y in approval_years] + [f"Request {y}" for y in request_years]
-
-layer_order = st.sidebar.multiselect("Set Layer Order (Bottom to Top)", available_layers, default=available_layers[::-1])
-
-# Warn if no data
 if filtered.empty:
     st.warning("⚠ No data matches your filters. Please adjust selections.")
     st.stop()
+
 
 # 📊 Preview Chart
 st.markdown("### 📊 Preview Chart")
@@ -384,30 +361,20 @@ sum_grouped["Total Distance (km)"] = sum_grouped["Total Distance (km)"].round(2)
 # Show in Streamlit
 st.dataframe(sum_grouped)
 
+
+# === Auto PDF Export Section ===
 import io
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.ticker import FuncFormatter
+from matplotlib.gridspec import GridSpec
 
-# Export section
-st.markdown("---")
-if st.button("📤 Export Chart & Summary to PDF"):
-    from matplotlib.backends.backend_pdf import PdfPages
-    from matplotlib.gridspec import GridSpec
-    from matplotlib.ticker import FuncFormatter
+export_base = f"{selected_road}_{int(start_input)}_{int(end_input)}"
 
-    export_base = f"{selected_road}_{int(start_input)}_{int(end_input)}"
-    pdf = PdfPages(f"{export_base}.pdf")
-
-    fig = plt.figure(figsize=(16.5, 11.7))  # A3 landscape
-    gs = GridSpec(2, 1, height_ratios=[3.2, 1.5])
-    fig.subplots_adjust(left=0.1, right=0.9, top=0.92, bottom=0.08)
-
-    # ===== Chart Section =====
-    ax1 = fig.add_subplot(gs[0])
+# Function: Generate Chart Figure
+def generate_chart_figure():
+    fig, ax1 = plt.subplots(figsize=(16.5, 8))
     ax1.set_title(f"\nRoad: {selected_road}", fontproperties=font_prop, fontsize=title_font_size)
 
-    label_positions = {}
-    pk_label_positions = []
-
-    # Plot bars
     request_segments = filtered[filtered["Type"] == "Request"].sort_values(by="PK_Start").reset_index()
     request_seq_map = {row["index"]: i + 1 for i, row in request_segments.iterrows()}
 
@@ -415,125 +382,63 @@ if st.button("📤 Export Chart & Summary to PDF"):
         mtype = str(seg['Maintenance_Type']).strip()
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
-
-        if seg["Type"] == "Request":
-            key = f"Request_{seg['Year']}_{mtype_key}"
-        else:
-            key = f"Approval_{seg['Year']}".replace(" ", "_")
-
+        key = f"{seg['Type']}_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}".replace(" ", "_")
         if key not in y_map:
             continue
-
         y = y_map[key]
         clipped_start = max(seg["PK_Start"], start_input)
         clipped_end = min(seg["PK_End"], end_input)
         if clipped_start >= clipped_end:
             continue
-
         edgecolor = "black" if seg["Type"] == "Request" else "none"
-        bar = ax1.barh(y, clipped_end - clipped_start, left=clipped_start,
-                       color=color, edgecolor=edgecolor, height=0.6)
-
+        ax1.barh(y, clipped_end - clipped_start, left=clipped_start,
+                 color=color, edgecolor=edgecolor, height=0.6)
         if seg["Type"] == "Request":
             seq = request_seq_map.get(idx, "")
             center_x = (clipped_start + clipped_end) / 2
             ax1.text(center_x, y, str(seq), ha='center', va='center',
                      fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5)
 
-    # Draw labels ON TOP with connector arrows (reset offset per row)
-    from collections import defaultdict
-    base_offset = 0.35
-    vertical_spacing = 0.15
-    grouped_by_y = defaultdict(list)
-
-    for i, row in request_segments.iterrows():
-        mtype = str(row["Maintenance_Type"]).strip()
-        key = f"Request_{row['Year']}_{mtype.replace(' ', '_')}"
-        y = y_map.get(key, 0)
-        grouped_by_y[y].append((i, row))
-
-    for y, segments in grouped_by_y.items():
-        for local_idx, (global_seq, row) in enumerate(segments):
-            pk_start, pk_end = row["PK_Start"], row["PK_End"]
-            label_x = (pk_start + pk_end) / 2
-            mtype = str(row["Maintenance_Type"]).strip()
-            label_color = color_map.get(mtype, "gray")
-
-            seq = global_seq + 1
-            pk_label = f"({seq}). {int(pk_start//1000)}+{int(pk_start%1000):03d} to {int(pk_end//1000)}+{int(pk_end%1000):03d}"
-            y_offset = y + base_offset + local_idx * vertical_spacing
-
-            ax1.text(label_x, y_offset, pk_label,
-                     ha='center', va='bottom', fontsize=6, color=label_color,
-                     fontproperties=font_prop,
-                     bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.9),
-                     clip_on=False)
-
-            ax1.annotate("", xy=(label_x, y + 0.3), xytext=(label_x, y_offset - 0.02),
-                         arrowprops=dict(arrowstyle="->", color=label_color, linewidth=0.8))
-
-            ax1.axvline(pk_start, linestyle="dashed", color=label_color, alpha=0.6)
-            ax1.axvline(pk_end, linestyle="dashed", color=label_color, alpha=0.6)
-
-    # Y labels
-    x_offset = (end_input - start_input) * 0.015
     ax1.set_yticks(list(y_map.values()))
+    x_offset = (end_input - start_input) * 0.015
     for y_val, label in zip(y_map.values(), y_labels):
         ax1.text(start_input - x_offset, y_val, label,
                  va='center', ha='right', fontsize=font_size,
                  fontproperties=font_prop, color=y_label_colors[y_val])
 
-    # Group labels
     label_x = start_input + (end_input - start_input) * 0.01
     for group_label, y_pos in group_titles:
         ax1.text(label_x, y_pos, group_label,
                  fontsize=font_size + 1, fontproperties=font_prop,
                  color="green", ha='center', va='center', rotation=90,
-                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="green", facecolor="none"),
-                 clip_on=False)
+                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="green", facecolor="none"))
 
-    # Bounding boxes
-    for label, rows in subrow_tracker.items():
-        if label.startswith("Request") and rows:
-            ax1.hlines([min(rows) - 0.5, max(rows) + 0.5], xmin=start_input, xmax=end_input, color='green', linewidth=1.5)
-            ax1.vlines([start_input, end_input], ymin=min(rows) - 0.5, ymax=max(rows) + 0.5, color='green', linewidth=1.5)
-
-    # Final plot setup
     ax1.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x // 1000)}+{int(x % 1000):03d}"))
     ax1.set_xlim(start_input, end_input)
     ax1.set_ylim(-0.5, max(y_map.values()) + 1.5)
     ax1.grid(True)
 
-    # Legend
     if legend_handles:
         ax1.legend(legend_handles.values(), legend_handles.keys(),
                    title="Maintenance Type", loc="upper right")
 
-    # ===== Summary Table Section =====
-    ax2 = fig.add_subplot(gs[1])
-    ax2.axis('off')
+    return fig
+
+# Function: Generate Summary Table Figure
+def generate_summary_figure():
+    fig, ax = plt.subplots(figsize=(16.5, 6))
+    ax.axis("off")
 
     table_data = sum_grouped.copy()
     table_data["PK Range"] = table_data["PK Range"].apply(lambda x: "\n".join(x[i:i+60] for i in range(0, len(x), 60)))
     data_matrix = table_data.values.tolist()
     col_labels = list(table_data.columns)
 
-    table = ax2.table(
-        cellText=data_matrix,
-        colLabels=col_labels,
-        cellLoc='center',
-        loc='center',
-        bbox=[0, 0, 1, 1]
-    )
+    table = ax.table(cellText=data_matrix, colLabels=col_labels, cellLoc='center', loc='center', bbox=[0, 0, 1, 1])
     table.auto_set_font_size(False)
-    col_widths = [0.12, 0.22, 0.5, 0.13]
+    table.set_fontsize(13)
 
     for (row, col), cell in table.get_celld().items():
-        cell.set_linewidth(0.7)
-        cell.set_fontsize(13)
-        cell.set_height(0.15)
-        if col < len(col_widths):
-            cell.set_width(col_widths[col])
         if row == 0:
             cell.set_text_props(color='white', weight='bold')
             cell.set_facecolor('#003366')
@@ -543,7 +448,39 @@ if st.button("📤 Export Chart & Summary to PDF"):
             cell.set_facecolor('white')
 
     table.scale(1, 2.0)
-    pdf.savefig(fig, bbox_inches='tight')
-    pdf.close()
-    st.success(f"✅ Exported to: {export_base}.pdf")
+    return fig
 
+# Function: Export to PDF in memory
+def export_pdf(figs: list):
+    buffer = io.BytesIO()
+    with PdfPages(buffer) as pdf:
+        for fig in figs:
+            pdf.savefig(fig, bbox_inches='tight')
+    return buffer.getvalue()
+
+# === EXPORT 1: Chart + Summary
+full_pdf = export_pdf([generate_chart_figure(), generate_summary_figure()])
+st.download_button(
+    label="📥 Download Chart + Summary",
+    data=full_pdf,
+    file_name=f"{export_base}_full.pdf",
+    mime="application/pdf"
+)
+
+# === EXPORT 2: Chart Only
+chart_pdf = export_pdf([generate_chart_figure()])
+st.download_button(
+    label="📈 Download Chart Only",
+    data=chart_pdf,
+    file_name=f"{export_base}_chart.pdf",
+    mime="application/pdf"
+)
+
+# === EXPORT 3: Summary Only
+summary_pdf = export_pdf([generate_summary_figure()])
+st.download_button(
+    label="📋 Download Summary Only",
+    data=summary_pdf,
+    file_name=f"{export_base}_summary.pdf",
+    mime="application/pdf"
+)
