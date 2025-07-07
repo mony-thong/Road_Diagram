@@ -1,0 +1,18 @@
+ROAD MAINTENANCE VISUALIZER - OFFLINE VERSION
+
+1. REQUIREMENTS:
+   - Python 3.x installed on your laptop
+   - Internet connection only for first-time setup
+
+2. FIRST-TIME SETUP:
+   - Open Command Prompt or Terminal
+   - Run: pip install -r requirements.txt
+
+3. HOW TO RUN THE APP:
+   - Double-click "run_app.bat"
+   - Your browser will open automatically to http://localhost:8501
+   - Use filters to explore data
+   - Click the export button to save chart and filtered data
+   - Use the form to add new records (saved directly to Excel)
+
+Enjoy your offline visualizer!
