@@ -372,7 +372,7 @@ export_base = f"{selected_road}_{int(start_input)}_{int(end_input)}"
 
 # Function: Generate Chart Figure
 def generate_chart_figure():
-    fig, ax1 = plt.subplots(figsize=(16.5, 8))
+    fig, ax1 = plt.subplots(figsize=(16.5, 11.7))
     ax1.set_title(f"\nRoad: {selected_road}", fontproperties=font_prop, fontsize=title_font_size)
 
     request_segments = filtered[filtered["Type"] == "Request"].sort_values(by="PK_Start").reset_index()
@@ -426,7 +426,7 @@ def generate_chart_figure():
 
 # Function: Generate Summary Table Figure
 def generate_summary_figure():
-    fig, ax = plt.subplots(figsize=(16.5, 6))
+    fig, ax = plt.subplots(figsize=(16.5, 11.6))
     ax.axis("off")
 
     table_data = sum_grouped.copy()
