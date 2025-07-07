@@ -379,7 +379,7 @@ def draw_chart(ax):
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
 
-        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}"
+        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}_"
         if key not in y_map:
             continue
 
@@ -397,7 +397,8 @@ def draw_chart(ax):
             seq = request_seq_map.get(idx, "")
             center_x = (clipped_start + clipped_end) / 2
             ax.text(center_x, y, str(seq), ha='center', va='center',
-                    fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5)
+                    fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5,
+                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
 
     x_offset = (end_input - start_input) * 0.015
     ax.set_yticks(list(y_map.values()))
