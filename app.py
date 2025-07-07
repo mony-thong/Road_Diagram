@@ -385,7 +385,7 @@ def draw_chart(ax):
         if seg["Type"] == "Request":
             key = f"Request_{seg['Year']}_{mtype_key}"
         else:
-            key = f"Approval_{seg['Year']}_{mtype_key}"
+            key = f"Approval_{seg['Year']}"  # ✅ correct
 
         if key not in y_map:
             continue
