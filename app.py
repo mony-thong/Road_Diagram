@@ -368,6 +368,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import FuncFormatter
+from collections import defaultdict
 
 # === DRAW CHART FUNCTION ===
 def draw_chart(ax):
@@ -381,7 +382,11 @@ def draw_chart(ax):
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
 
-        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}_{mtype_key}"
+        if seg["Type"] == "Request":
+            key = f"Request_{seg['Year']}_{mtype_key}"
+        else:
+            key = f"Approval_{seg['Year']}_{mtype_key}"
+
         if key not in y_map:
             continue
 
@@ -466,6 +471,7 @@ def draw_chart(ax):
     if legend_handles:
         ax.legend(legend_handles.values(), legend_handles.keys(),
                   title="Maintenance Type", loc="upper right")
+
 # === DRAW SUMMARY FUNCTION ===
 def draw_summary_table(ax):
     ax.axis("off")
