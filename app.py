@@ -374,6 +374,8 @@ def draw_chart(ax):
     request_segments = filtered[filtered["Type"] == "Request"].sort_values(by="PK_Start").reset_index()
     request_seq_map = {row["index"]: i + 1 for i, row in request_segments.iterrows()}
 
+    legend_handles = {}
+
     for idx, seg in filtered.iterrows():
         mtype = str(seg['Maintenance_Type']).strip()
         color = color_map.get(mtype, "gray")
@@ -393,12 +395,47 @@ def draw_chart(ax):
         bar = ax.barh(y, clipped_end - clipped_start, left=clipped_start,
                       color=color, edgecolor=edgecolor, height=0.6)
 
+        if mtype not in legend_handles:
+            legend_handles[mtype] = bar[0]
+
         if seg["Type"] == "Request":
             seq = request_seq_map.get(idx, "")
             center_x = (clipped_start + clipped_end) / 2
             ax.text(center_x, y, str(seq), ha='center', va='center',
                     fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5,
                     bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+
+    # === Draw PK range labels with arrows ===
+    base_offset = 0.35
+    vertical_spacing = 0.15
+    grouped_by_y = defaultdict(list)
+    for i, row in request_segments.iterrows():
+        mtype = str(row["Maintenance_Type"]).strip()
+        key = f"Request_{row['Year']}_{mtype.replace(' ', '_')}"
+        y = y_map.get(key, 0)
+        grouped_by_y[y].append((i, row))
+
+    for y, segments in grouped_by_y.items():
+        for local_idx, (global_seq, row) in enumerate(segments):
+            pk_start, pk_end = row["PK_Start"], row["PK_End"]
+            label_x = (pk_start + pk_end) / 2
+            mtype = str(row["Maintenance_Type"]).strip()
+            label_color = color_map.get(mtype, "gray")
+
+            seq = global_seq + 1
+            pk_label = f"({seq}). {int(pk_start//1000)}+{int(pk_start%1000):03d} to {int(pk_end//1000)}+{int(pk_end%1000):03d}"
+            y_offset = y + base_offset + local_idx * vertical_spacing
+
+            ax.text(label_x, y_offset, pk_label, ha='center', va='bottom', fontsize=6,
+                    color=label_color, fontproperties=font_prop,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.9),
+                    clip_on=False)
+
+            ax.annotate("", xy=(label_x, y + 0.3), xytext=(label_x, y_offset - 0.02),
+                        arrowprops=dict(arrowstyle="->", color=label_color, linewidth=0.8))
+
+            ax.axvline(pk_start, linestyle="dashed", color=label_color, alpha=0.6)
+            ax.axvline(pk_end, linestyle="dashed", color=label_color, alpha=0.6)
 
     x_offset = (end_input - start_input) * 0.015
     ax.set_yticks(list(y_map.values()))
@@ -412,15 +449,23 @@ def draw_chart(ax):
                 fontproperties=font_prop, color="green", ha='center', va='center', rotation=90,
                 bbox=dict(boxstyle="round,pad=0.3", edgecolor="green", facecolor="none"))
 
+    for label, rows in subrow_tracker.items():
+        if not label.startswith("Request") or not rows:
+            continue
+        top = max(rows) + 0.5
+        bottom = min(rows) - 0.5
+        ax.hlines([bottom, top], xmin=start_input, xmax=end_input, color='green', linewidth=1.5)
+        ax.vlines([start_input, end_input], ymin=bottom, ymax=top, color='green', linewidth=1.5)
+
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x // 1000)}+{int(x % 1000):03d}"))
     ax.set_xlim(start_input, end_input)
     ax.set_ylim(-0.5, max(y_map.values()) + 1.5)
+    ax.set_title(f"\n\nRoad: {selected_road}", fontproperties=font_prop, fontsize=title_font_size)
     ax.grid(True)
 
     if legend_handles:
         ax.legend(legend_handles.values(), legend_handles.keys(),
                   title="Maintenance Type", loc="upper right")
-
 # === DRAW SUMMARY FUNCTION ===
 def draw_summary_table(ax):
     ax.axis("off")
