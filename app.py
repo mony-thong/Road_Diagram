@@ -511,12 +511,3 @@ with col3:
     buf = export_pdf(fig)
     st.download_button("Download Full Report", data=buf, file_name=f"{export_base}_full.pdf", mime="application/pdf")
     plt.close(fig)
-
-# === EXPORT 3: Summary Only
-summary_pdf = export_pdf([generate_summary_figure()])
-st.download_button(
-    label="📋 Download Summary Only",
-    data=summary_pdf,
-    file_name=f"{export_base}_summary.pdf",
-    mime="application/pdf"
-)
