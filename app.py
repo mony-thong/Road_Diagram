@@ -370,7 +370,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.ticker import FuncFormatter
 
 # === DRAW CHART FUNCTION ===
-def draw_chart(ax):
+ef draw_chart(ax):
     request_segments = filtered[filtered["Type"] == "Request"].sort_values(by="PK_Start").reset_index()
     request_seq_map = {row["index"]: i + 1 for i, row in request_segments.iterrows()}
 
@@ -381,7 +381,7 @@ def draw_chart(ax):
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
 
-        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}_"
+        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}_{mtype_key}"
         if key not in y_map:
             continue
 
@@ -403,7 +403,7 @@ def draw_chart(ax):
             center_x = (clipped_start + clipped_end) / 2
             ax.text(center_x, y, str(seq), ha='center', va='center',
                     fontsize=10, fontweight='bold', fontproperties=font_prop, zorder=5,
-                    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8))
+                    bbox=dict(boxstyle="circle", facecolor='white', edgecolor='black', linewidth=1, alpha=0.9))
 
     # === Draw PK range labels with arrows ===
     base_offset = 0.35
@@ -466,6 +466,7 @@ def draw_chart(ax):
     if legend_handles:
         ax.legend(legend_handles.values(), legend_handles.keys(),
                   title="Maintenance Type", loc="upper right")
+
 # === DRAW SUMMARY FUNCTION ===
 def draw_summary_table(ax):
     ax.axis("off")
