@@ -381,13 +381,9 @@ def draw_chart(ax):
         color = color_map.get(mtype, "gray")
         mtype_key = mtype.replace(" ", "_")
 
-        if seg["Type"] == "Request":
-        key = f"Request_{seg['Year']}_{mtype_key}"
-    else:
-        key = f"Approval_{seg['Year']}".replace(" ", "_")
-
-    if key not in y_map:
-        continue
+        key = f"Request_{seg['Year']}_{mtype_key}" if seg["Type"] == "Request" else f"Approval_{seg['Year']}_{mtype_key}"
+        if key not in y_map:
+            continue
 
         y = y_map[key]
         clipped_start = max(seg["PK_Start"], start_input)
@@ -470,7 +466,6 @@ def draw_chart(ax):
     if legend_handles:
         ax.legend(legend_handles.values(), legend_handles.keys(),
                   title="Maintenance Type", loc="upper right")
-
 # === DRAW SUMMARY FUNCTION ===
 def draw_summary_table(ax):
     ax.axis("off")
