@@ -292,7 +292,7 @@ for y_val, label in zip(y_map.values(), y_labels):
             fontproperties=font_prop, color=y_label_colors[y_val])
 
 # Step 8: Group vertical labels
-x_offset = (end_input - start_input) * 1.5  # 5% of total width
+x_offset = (end_input - start_input) * -0.5  # 5% of total width
 label_x = start_input + x_offset
 for group_label, y_pos in group_titles:
     ax.text(label_x, y_pos, group_label,
