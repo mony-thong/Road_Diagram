@@ -292,7 +292,7 @@ for y_val, label in zip(y_map.values(), y_labels):
             fontproperties=font_prop, color=y_label_colors[y_val])
 
 # Step 8: Group vertical labels
-x_offset = (end_input - start_input) * -0.1  # 5% of total width
+x_offset = (end_input - start_input) * -0.15  # 5% of total width
 label_x = start_input + x_offset
 for group_label, y_pos in group_titles:
     ax.text(label_x, y_pos, group_label,
@@ -448,7 +448,7 @@ def draw_chart(ax):
         ax.text(start_input - x_offset, y_val, label, va='center', ha='right',
                 fontsize=font_size, fontproperties=font_prop, color=y_label_colors[y_val])
 
-    label_x = start_input + (end_input - start_input) * 0.01
+    label_x = start_input + (end_input - start_input) * -0.15
     for group_label, y_pos in group_titles:
         ax.text(label_x, y_pos, group_label, fontsize=font_size + 1,
                 fontproperties=font_prop, color="green", ha='center', va='center', rotation=90,
