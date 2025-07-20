@@ -161,7 +161,7 @@ for label in layer_order:
             row_index += 1
 
         group_y = sum(subrow_tracker[label]) / len(subrow_tracker[label])
-        group_titles.append((label, group_y))
+        group_titles.append((group_y))
     else:
         y_key = key_prefix
         y_map[y_key] = row_index
